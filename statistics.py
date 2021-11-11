@@ -34,7 +34,8 @@ if __name__ == '__main__':
     
     #result_dict = cal_acc('../svm-result/svm-result25')
     #result_dict = cal_acc('datasets/rest/tmp_optimized_result')
-    result_dict = cal_acc('datasets/rest/optimal_results/rounds_10')
+    fn = 'rounds_1'
+    result_dict = cal_acc(f'datasets/rest/optimal_results/{fn}')
     #result_dict = cal_acc('datasets/rest/optimal_results/svm-results-k20')
     correct = sum(result_dict['correct'])
     total = sum(result_dict['total'])
