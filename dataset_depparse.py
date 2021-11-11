@@ -12,16 +12,16 @@ def load_stanza():
     stanza.download('en')
     return stanza.Pipeline(lang='en', tokenize_pretokenized=True)
     
-def aspect_cluster(dataset, n_clusters=20):
-    ac = AspectCluster(dataset, n_clusters)
+def aspect_cluster(dataset, mode, n_clusters=20):
+    ac = BERTAspectCluster(dataset, mode=mode, n_clusters=n_clusters)
     _, vectors = ac.fit()
     ac.predict()
     ac.save_cluster_result()
 
     return ac, vectors
 
-def word_cluster(dataset, n_clusters=20):
-    wc = WordsCluster(dataset, n_clusters)
+def word_cluster(dataset, mode, n_clusters=20):
+    wc = BERTWordsCluster(dataset, mode=mode, n_clusters=n_clusters)
     wc.generate_vector()
     return wc
 
@@ -74,9 +74,9 @@ class Dataset(object):
             self.preprocessing(self.test_data)
 
             print('attempt aspect cluster')
-            aspect_cluster(self, n_clusters)
+            aspect_cluster(self, 0, n_clusters)
             print('attempt word cluster')
-            word_cluster(self, n_clusters)
+            word_cluster(self, 0, n_clusters)
 
             print('save files...')
             self.save_as_pickle(base_dir, 'parsed_data', 'parsed_train.plk', 'parsed_test.plk', self.train_data, self.test_data)
