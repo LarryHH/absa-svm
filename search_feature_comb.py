@@ -14,15 +14,26 @@ from sklearn.preprocessing import scale
 from hyperopt_libsvm import HyperoptTunerLibSVM
 import time
 from pathlib import Path
+import pickle
 
-
+from transformers import BertTokenizerFast
 
 REST_DIR = 'datasets/rest/'
 LAPTOP_DIR = 'datastes/laptops/'
+TOKENIZER = None
+EMBED_DICT = None
 stop_words = stop_words()
 
+def get_aspect_embedding(sample):
+    tokens = TOKENIZER.tokenize( "[CLS] " + sample.aspect + " [SEP]")
+    tokens = [t for t in tokens if t != '[CLS]' and t != '[SEP]']
+    embeddings = [v['embedding'] for t in tokens for k, v in EMBED_DICT[t].items() if v['sample_id'] == sample.id]
+    if len(embeddings) > 1:
+        embeddings = np.mean(embeddings, axis=0)
+        return embeddings
+    return embeddings[0]
 
-def generate_vectors(train_data, test_data, bf, lsa_k=None):
+def generate_vectors(train_data, test_data, bf, asp, lsa_k=None):
     if bf == 'all_words':
         x_train_tfidf, x_test_tfidf, x_train_pos_vec, x_test_pos_vec = dependent_features_vectors([s.words for s in train_data],
                                                                  [s.words for s in test_data],
@@ -57,8 +68,15 @@ def generate_vectors(train_data, test_data, bf, lsa_k=None):
                                            [s.pos_tags for s in test_data],
                                            [s.dependent_words for s in test_data])
 
-    x_train = np.concatenate((x_train_tfidf, x_train_pos_vec,  x_train_sbow, x_train_lfe), axis=1)
-    x_test = np.concatenate((x_test_tfidf, x_test_pos_vec, x_test_sbow, x_test_lfe), axis=1)
+    if asp:
+        x_train_asp_emb = np.asarray([get_aspect_embedding(s) for s in train_data])
+        x_test_asp_emb =  np.asarray([get_aspect_embedding(s) for s in test_data])
+        x_train = np.concatenate((x_train_tfidf, x_train_pos_vec,  x_train_sbow, x_train_lfe, x_train_asp_emb), axis=1)
+        x_test = np.concatenate((x_test_tfidf, x_test_pos_vec, x_test_sbow, x_test_lfe, x_test_asp_emb), axis=1)
+    else:
+        x_train = np.concatenate((x_train_tfidf, x_train_pos_vec,  x_train_sbow, x_train_lfe), axis=1)
+        x_test = np.concatenate((x_test_tfidf, x_test_pos_vec, x_test_sbow, x_test_lfe), axis=1)
+
     y_train = [y.polarity for y in train_data]
     y_test = [y.polarity for y in test_data]
     return x_train, y_train, x_test, y_test
@@ -125,61 +143,92 @@ def evaluation(y_preds, y_true):
     print(clf_report)
     print("####################################################################")
 
+def load_tokenizer():
+    global TOKENIZER
+    # TODO: never split
+    TOKENIZER = BertTokenizerFast.from_pretrained('bert-base-uncased')
+
+def load_embed_dict(mode):
+    global EMBED_DICT
+    # mode 0 = wordpiece, mode 1 = neversplit
+    if mode == 0:
+        embed_path = os.path.join(REST_DIR, f'parsed_data/bert_embeddings_rest.plk')
+    if mode == 1:
+        embed_path = os.path.join(REST_DIR, f'parsed_data/bert_embeddings_rest_ns.plk')
+    EMBED_DICT = pickle.load(open(embed_path, 'rb'))
+
+def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix):
+    if suffix != '':
+        suffix = '_' + suffix
+    Path(f"{REST_DIR}optimal_results/r{r}{suffix}/").mkdir(parents=True, exist_ok=True)
+    with open(f"{REST_DIR}optimal_results/r{r}/svm_{str(aspect_id)}", 'w') as f:
+        f.write("################################################################\n")
+        f.write('chi_ratio: ' + str(cr) + '\n')
+        # f.write('cr: ' + str(cr) + '\n')
+        f.write('bow_features: ' + bf + '\n')
+        f.write('is_sampling: ' + str(iss) + '\n')
+        f.write('is_aspect_embeddings: ' + str(asp) + '\n')
+        f.write(str(ht.best_cfg) + "\n")
+        f.write('Optimized acc: %.5f \n' % ht.best_acc)
+        f.write('Optimized macro_f1: %.5f \n' % ht.best_f1)
+        f.write('training set shape: %s\n' % str(ht.train_X.shape))
+        f.write(ht.clf_report)
+        f.write("correct / total: %d / %d\n" % (ht.correct, len(ht.test_y)))
+        f.write("elapsed time: %.5f s\n" % ht.elapsed_time)
+        f.write(f'incorrect_samples:\n[{incorrect_samples}]')
 
 def main():
+    load_embed_dict(mode=0)
+    load_tokenizer()
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True]
+    is_aspect_embeddings = [True, False]
     best_accs = [0 for _ in range(0, 26)]
     print(chi_ratios)
     #num_rounds = 2000 # NOTE: CHANGE NO. ROUNDS
-    num_rounds = 10
+    num_rounds = 2000
+    suffix = ''
     for aspect_id in range(0, 20): # NOTE: CHANGE THIS RANGE TO REFLECT NUMBER OF CLUSTERS
         ht = HyperoptTunerLibSVM()
         # ht1 = HyperoptTunerLibSVM()
         for bf in bow_features:
             for iss in is_sampling:
-                if 'chi' in bf:
-                    for cr in chi_ratios:
-                        data = Dataset(base_dir=REST_DIR, is_preprocessed=True, ratio=cr) #
+                for asp in is_aspect_embeddings:
+                    if 'chi' in bf:
+                        for cr in chi_ratios:
+                            data = Dataset(base_dir=REST_DIR, is_preprocessed=True, ratio=cr) #
+                            train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
+                            print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
+                                (aspect_id, len(train_data), len(test_data)))
+                            x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
+                            print(x_train.shape)
+                            print(x_train)
+                            scaler = Normalizer().fit(x_train)
+                            x_train = scaler.transform(x_train)
+                            x_test = scaler.transform(x_test)
+                            ht.train_X = x_train
+                            ht.train_y = y_train
+                            ht.test_X = x_test
+                            ht.test_y = y_test
+                            ht.cluster_id = aspect_id
+                            ht.base_dir = data.base_dir
+                            ht.tune_params(num_rounds)
+
+                            if ht.best_acc > best_accs[aspect_id]:
+                                best_accs[aspect_id] = ht.best_acc
+                                predictions = ht.pred_results.tolist()
+                                true_labels = y_test
+                                mask = [False if x[0] == x[1] else True for x in zip(predictions, true_labels)]
+                                incorrect_samples = ', '.join([str(s.id) for i, s in enumerate(test_data) if mask[i]])
+                                write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix)
+
+                    else:
+                        data = Dataset(base_dir=REST_DIR, is_preprocessed=True) #
                         train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
-                              (aspect_id, len(train_data), len(test_data)))
-                        x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf)
-                        print(x_train.shape)
-                        scaler = Normalizer().fit(x_train)
-                        x_train = scaler.transform(x_train)
-                        x_test = scaler.transform(x_test)
-                        ht.train_X = x_train
-                        ht.train_y = y_train
-                        ht.test_X = x_test
-                        ht.test_y = y_test
-                        ht.cluster_id = aspect_id
-                        ht.base_dir = data.base_dir
-                        ht.tune_params(num_rounds)
-
-                        if ht.best_acc > best_accs[aspect_id]:
-                            best_accs[aspect_id] = ht.best_acc
-                            Path(f"{REST_DIR}optimal_results/rounds_{num_rounds}/").mkdir(parents=True, exist_ok=True)
-                            with open(f"{REST_DIR}optimal_results/rounds_{num_rounds}/svm_{str(aspect_id)}", 'w') as f:
-                                f.write("################################################################\n")
-                                f.write('chi_ratio: ' + str(cr) + '\n')
-                                # f.write('cr: ' + str(cr) + '\n')
-                                f.write('bow_features: ' + bf + '\n')
-                                f.write('is_sampling: ' + str(iss) + '\n')
-                                f.write(str(ht.best_cfg) + "\n")
-                                f.write('Optimized acc: %.5f \n' % ht.best_acc)
-                                f.write('Optimized macro_f1: %.5f \n' % ht.best_f1)
-                                f.write('training set shape: %s\n' % str(ht.train_X.shape))
-                                f.write(ht.clf_report)
-                                f.write("correct / total: %d / %d\n" % (ht.correct, len(ht.test_y)))
-                                f.write("elapsed time: %.5f s\n" % ht.elapsed_time)
-                else:
-                    data = Dataset(base_dir=REST_DIR, is_preprocessed=True) #
-                    train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
-                    print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
-                          (aspect_id, len(train_data), len(test_data)))
-                    x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf)
+                            (aspect_id, len(train_data), len(test_data)))
+                        x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
                     
 
 if __name__ == '__main__':
