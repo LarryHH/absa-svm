@@ -1,0 +1,22 @@
+################################################################
+chi_ratio: 0.3
+bow_features: parse+chi
+is_sampling: True
+is_aspect_embeddings: False
+{'C': 160755.27439829335, 'coef0': 8.277201175967974, 'degree': 1, 'gamma': 0.0093014458038516, 'kernel': 'poly'}
+Optimized acc: 0.67647 
+Optimized macro_f1: 0.65185 
+training set shape: (135, 712)
+              precision    recall  f1-score   support
+
+          -1       0.42      0.83      0.56         6
+           0       0.75      0.50      0.60        12
+           1       0.86      0.75      0.80        16
+
+    accuracy                           0.68        34
+   macro avg       0.67      0.69      0.65        34
+weighted avg       0.74      0.68      0.69        34
+correct / total: 23 / 34
+elapsed time: 0.03100 s
+incorrect_samples:
+[10, 15, 22, 389, 537, 654, 693, 709, 830, 1081, 1087]
