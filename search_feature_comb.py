@@ -187,7 +187,7 @@ def main():
     best_accs = [0 for _ in range(0, 26)]
     print(chi_ratios)
     #num_rounds = 2000 # NOTE: CHANGE NO. ROUNDS
-    num_rounds = 2000
+    num_rounds = 1
     suffix = ''
     for aspect_id in range(0, 20): # NOTE: CHANGE THIS RANGE TO REFLECT NUMBER OF CLUSTERS
         ht = HyperoptTunerLibSVM()
@@ -232,4 +232,6 @@ def main():
                     
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+    print("--- %s seconds ---" % (time.time() - start))
