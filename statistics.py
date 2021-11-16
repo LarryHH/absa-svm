@@ -1,10 +1,17 @@
 import os
+import re
 
+NUMBERS = re.compile(r'(\d+)')
+
+def numerical_sort(value):
+    parts = NUMBERS.split(value)
+    parts[1::2] = map(int, parts[1::2])
+    return parts
 
 def cal_acc(result_dir):
     filenames = os.listdir(result_dir)
     result_dict = {}
-    for fn in filenames:
+    for fn in sorted(filenames, key=numerical_sort):
         final_path = os.path.join(result_dir, fn)
         with open(final_path, 'r') as f:
             for line in f.readlines():
@@ -34,7 +41,7 @@ if __name__ == '__main__':
     
     #result_dict = cal_acc('../svm-result/svm-result25')
     #result_dict = cal_acc('datasets/rest/tmp_optimized_result')
-    fn = 'rounds_1'
+    fn = 'r2000_BERT'
     result_dict = cal_acc(f'datasets/rest/optimal_results/{fn}')
     #result_dict = cal_acc('datasets/rest/optimal_results/svm-results-k20')
     correct = sum(result_dict['correct'])
