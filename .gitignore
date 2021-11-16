@@ -11,8 +11,8 @@ datasets/rest/aspect_cluster/train/cluster_*
 datasets/laptops/aspect_cluster/test/cluster_*
 datasets/laptops/aspect_cluster/train/cluster_*
 
-datasets/rest/parsed_data/bert_embeddings_rest.plk
 datasets/rest/parsed_data/bert_embeddings_rest_ns.plk
+datasets/rest/parsed_data/bert_embeddings_rest.plk
 
 datasets/laptops/parsed_data/bert_embeddings_laptops.plk
 datasets/laptops/parsed_data/bert_embeddings_laptops_ns.plk
