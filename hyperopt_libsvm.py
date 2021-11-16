@@ -56,7 +56,7 @@ class HyperoptTunerLibSVM(object):
 
     def _svm(self, params, is_tuning=True):
         params = self._svm_constraint(params)
-        print("!!!!!!!!!!!!!!--->>> " + str(params))
+        # print("!!!!!!!!!!!!!!--->>> " + str(params))
         clf = SVC(**params, random_state=42)
         clf.fit(self.train_X, self.train_y)
         pred = clf.predict(self.test_X)
