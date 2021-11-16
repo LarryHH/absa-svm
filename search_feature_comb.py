@@ -157,10 +157,10 @@ def load_embed_dict(mode):
         embed_path = os.path.join(REST_DIR, f'parsed_data/bert_embeddings_rest_ns.plk')
     EMBED_DICT = pickle.load(open(embed_path, 'rb'))
 
-def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix):
+def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters):
     if suffix != '':
         suffix = '_' + suffix
-    Path(f"{REST_DIR}optimal_results/r{r}{suffix}/").mkdir(parents=True, exist_ok=True)
+    Path(f"{REST_DIR}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
     with open(f"{REST_DIR}optimal_results/r{r}/svm_{str(aspect_id)}", 'w') as f:
         f.write("################################################################\n")
         f.write('chi_ratio: ' + str(cr) + '\n')
@@ -180,16 +180,18 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
 def main():
     load_embed_dict(mode=0)
     load_tokenizer()
+    n_clusters = 20
+    #num_rounds = 2000 # NOTE: CHANGE NO. ROUNDS
+    num_rounds = 1
+    suffix = 'BERT'
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True]
     is_aspect_embeddings = [True, False]
-    best_accs = [0 for _ in range(0, 26)]
+    best_accs = [0 for _ in range(0, n_clusters)]
     print(chi_ratios)
-    #num_rounds = 2000 # NOTE: CHANGE NO. ROUNDS
-    num_rounds = 1
-    suffix = ''
-    for aspect_id in range(0, 20): # NOTE: CHANGE THIS RANGE TO REFLECT NUMBER OF CLUSTERS
+
+    for aspect_id in range(0, n_clusters):
         ht = HyperoptTunerLibSVM()
         # ht1 = HyperoptTunerLibSVM()
         for bf in bow_features:
@@ -221,7 +223,7 @@ def main():
                                 true_labels = y_test
                                 mask = [False if x[0] == x[1] else True for x in zip(predictions, true_labels)]
                                 incorrect_samples = ', '.join([str(s.id) for i, s in enumerate(test_data) if mask[i]])
-                                write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix)
+                                write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters)
 
                     else:
                         data = Dataset(base_dir=REST_DIR, is_preprocessed=True) #
