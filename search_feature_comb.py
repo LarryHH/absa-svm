@@ -161,7 +161,7 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
     if suffix != '':
         suffix = '_' + suffix
     Path(f"{REST_DIR}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
-    with open(f"{REST_DIR}optimal_results/r{r}/svm_{str(aspect_id)}", 'w') as f:
+    with open(f"{REST_DIR}optimal_results/r{r}_k{n_clusters}{suffix}/svm_{str(aspect_id)}", 'w') as f:
         f.write("################################################################\n")
         f.write('chi_ratio: ' + str(cr) + '\n')
         # f.write('cr: ' + str(cr) + '\n')
@@ -180,9 +180,11 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
 def main():
     load_embed_dict(mode=0)
     load_tokenizer()
+
     n_clusters = 20
     num_rounds = 10
     suffix = 'BERT'
+    
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True]
