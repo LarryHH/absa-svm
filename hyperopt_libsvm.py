@@ -1,7 +1,10 @@
 from hyperopt import hp, tpe, STATUS_OK, fmin
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from file_utils import *
+
 from sklearn.svm import SVC
+#from thundersvm import SVC
+
 import time
 import os
 
@@ -33,16 +36,17 @@ class HyperoptTunerLibSVM(object):
             'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             'degree': hp.choice('degree', [i for i in range(1, 6)]),
-            'coef0': hp.uniform('coef0', 1, 10)
+            'coef0': hp.uniform('coef0', 1, 10),
+            'class_weight': hp.choice('class_weight', ['balanced', None]) 
         }
 
         return space4svm
 
     def _svm_constraint(self, params):
-        if params['kernel'] != 'poly':
+        if params['kernel'] != 'polynomial':
             params.pop('degree', None)
 
-        if params['kernel'] != 'poly' and params['kernel'] != 'sigmoid':
+        if params['kernel'] != 'polynomial' and params['kernel'] != 'sigmoid':
             params.pop('coef0', None)
 
         if params['kernel'] == 'linear':
@@ -69,27 +73,28 @@ class HyperoptTunerLibSVM(object):
             self.clf_report = str(classification_report(self.test_y, pred))
 
         if is_tuning:
-            print("****************************************************************")
-            print('current params:\n  %s' % str(params))
-            print('best params:\n  %s' % str(self.best_cfg))
-            print('training set shape: %s' % str(self.train_X.shape))
-            print('current acc / best acc: %.5f / %.5f' % (score_acc, self.best_acc))
+            # print("****************************************************************")
+            # print('current params:\n  %s' % str(params))
+            # print('best params:\n  %s' % str(self.best_cfg))
+            # print('training set shape: %s' % str(self.train_X.shape))
+            # print('current acc / best acc: %.5f / %.5f' % (score_acc, self.best_acc))
+            # print('current_iter / best_iter: %d / %d' % (self.cnt, self.best_iter))
+            # print("best_macro_f1: %.5f" % self.best_f1)
+            # print(self.clf_report)
+            # print("****************************************************************")
             print('current_iter / best_iter: %d / %d' % (self.cnt, self.best_iter))
-            print("best_macro_f1: %.5f" % self.best_f1)
-            print(self.clf_report)
-            print("****************************************************************")
         else:
             correct = 0
             for pred_y, true_y in zip(pred, self.test_y):
                 if pred_y == true_y:
                     correct += 1
             self.correct = correct
-            print("\n\n################################################################")
-            print(params)
-            print('Optimized acc: %.5f ' % score_acc)
-            print('Optimized macro_f1: %.5f ' % score_f1)
-            print(self.clf_report)
-            print("####################################################################")
+            # print("\n\n################################################################")
+            # print(params)
+            # print('Optimized acc: %.5f ' % score_acc)
+            # print('Optimized macro_f1: %.5f ' % score_f1)
+            # print(self.clf_report)
+            # print("####################################################################")
             make_dirs(os.path.join(self.base_dir, 'tmp_optimized_result'))
             path2save = os.path.join(self.base_dir, 'tmp_optimized_result', 'cluster_' + str(self.cluster_id))
 
