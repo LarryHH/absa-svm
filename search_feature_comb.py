@@ -137,11 +137,11 @@ def evaluation(y_preds, y_true):
     acc = accuracy_score(y_true, y_preds)
     f1 = f1_score(y_true, y_preds, average='macro')
     clf_report = classification_report(y_true, y_preds)
-    print("\n\n################################################################")
-    print('Optimized acc: %.5f ' % acc)
-    print('Optimized macro_f1: %.5f ' % f1)
-    print(clf_report)
-    print("####################################################################")
+    # print("\n\n################################################################")
+    # print('Optimized acc: %.5f ' % acc)
+    # print('Optimized macro_f1: %.5f ' % f1)
+    # print(clf_report)
+    # print("####################################################################")
 
 def load_tokenizer():
     global TOKENIZER
@@ -181,8 +181,7 @@ def main():
     load_embed_dict(mode=0)
     load_tokenizer()
     n_clusters = 20
-    #num_rounds = 2000 # NOTE: CHANGE NO. ROUNDS
-    num_rounds = 1
+    num_rounds = 10
     suffix = 'BERT'
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
@@ -199,13 +198,15 @@ def main():
                 for asp in is_aspect_embeddings:
                     if 'chi' in bf:
                         for cr in chi_ratios:
+                            if ht.best_acc >= 1.0:
+                                break
                             data = Dataset(base_dir=REST_DIR, is_preprocessed=True, ratio=cr) #
                             train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
-                            print(x_train.shape)
-                            print(x_train)
+                            # print(x_train.shape)
+                            # print(x_train)
                             scaler = Normalizer().fit(x_train)
                             x_train = scaler.transform(x_train)
                             x_test = scaler.transform(x_test)
@@ -234,6 +235,7 @@ def main():
                     
 
 if __name__ == '__main__':
-    start = time.time()
+    start = time.perf_counter()
     main()
-    print("--- %s seconds ---" % (time.time() - start))
+    end = time.perf_counter()
+    print("--- %s seconds ---" % (end - start))
