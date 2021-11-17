@@ -182,8 +182,8 @@ def main():
     load_tokenizer()
 
     n_clusters = 20
-    num_rounds = 10
-    suffix = 'BERT'
+    num_rounds = 2000
+    suffix = 'cw_BERT'
     
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
@@ -207,6 +207,9 @@ def main():
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
+                            # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
+                            y_train = [pol+1 for pol in y_train]
+                            y_test = [pol+1 for pol in y_test]
                             # print(x_train.shape)
                             # print(x_train)
                             scaler = Normalizer().fit(x_train)
@@ -234,6 +237,9 @@ def main():
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                             (aspect_id, len(train_data), len(test_data)))
                         x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
+                        # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
+                        y_train = [pol+1 for pol in y_train]
+                        y_test = [pol+1 for pol in y_test]
                     
 
 if __name__ == '__main__':
