@@ -2,8 +2,8 @@ from hyperopt import hp, tpe, STATUS_OK, fmin
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from file_utils import *
 
-from sklearn.svm import SVC
-#from thundersvm import SVC
+#from sklearn.svm import SVC
+from thundersvm import SVC
 
 import time
 import os
@@ -32,12 +32,14 @@ class HyperoptTunerLibSVM(object):
     def _preset_ps(self):
         space4svm = {
             'C': hp.uniform('C', 2 ** 10, 2 ** 20),
-            'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', 'poly']), #, 'linear', 'rbf', 'polynomial'
+            # NOTE: CHANGE ALL KERNEL FROM 'POLY' TO 'POLYNOMIAL'
+            'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', 'polynomial']), #, 'linear', 'rbf', 'polynomial'
             'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             'degree': hp.choice('degree', [i for i in range(1, 6)]),
             'coef0': hp.uniform('coef0', 1, 10),
-            'class_weight': hp.choice('class_weight', ['balanced', None]) 
+            'class_weight': hp.choice('class_weight', ['balanced', None]),
+             
         }
 
         return space4svm
