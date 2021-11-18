@@ -30,7 +30,7 @@ def load_absa_dataset(fp: str) -> List[Sample]:
 def load_gpt3_config(fp):
     config = configparser.ConfigParser(allow_no_value=True)		
     config.read(fp)
-    args = config['GPT3_ARGS']
+    args = config['GPT3']
     args = {
         'api_key': args['api_key'],
         'iters': int(args['iters']),
