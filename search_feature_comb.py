@@ -11,15 +11,18 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import scale
-from hyperopt_libsvm import HyperoptTunerLibSVM
+
+from hyperopt_libsvm import HyperoptTunerSVM  
+
 import time
 from pathlib import Path
 import pickle
+import configparser
 
 from transformers import BertTokenizerFast
 
-REST_DIR = 'datasets/rest/'
-LAPTOP_DIR = 'datastes/laptops/'
+DATA_ARGS = None
+SVC_ARGS = None
 TOKENIZER = None
 EMBED_DICT = None
 stop_words = stop_words()
@@ -148,20 +151,19 @@ def load_tokenizer():
     # TODO: never split
     TOKENIZER = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-def load_embed_dict(mode):
+def load_embed_dict():
     global EMBED_DICT
-    # mode 0 = wordpiece, mode 1 = neversplit
-    if mode == 0:
-        embed_path = os.path.join(REST_DIR, f'parsed_data/bert_embeddings_rest.plk')
-    if mode == 1:
-        embed_path = os.path.join(REST_DIR, f'parsed_data/bert_embeddings_rest_ns.plk')
+    if DATA_ARGS.getboolean('never_split'):
+        embed_path = os.path.join(DATA_ARGS['base_dir'], f"parsed_data/bert_embeddings_{DATA_ARGS['base_dir'].split('/')[1]}_ns.plk")
+    else:
+        embed_path = os.path.join(DATA_ARGS['base_dir'], f"parsed_data/bert_embeddings_{DATA_ARGS['base_dir'].split('/')[1]}.plk")
     EMBED_DICT = pickle.load(open(embed_path, 'rb'))
 
 def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters):
     if suffix != '':
         suffix = '_' + suffix
-    Path(f"{REST_DIR}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
-    with open(f"{REST_DIR}optimal_results/r{r}_k{n_clusters}{suffix}/svm_{str(aspect_id)}", 'w') as f:
+    Path(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
+    with open(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/svm_{str(aspect_id)}", 'w') as f:
         f.write("################################################################\n")
         f.write('chi_ratio: ' + str(cr) + '\n')
         # f.write('cr: ' + str(cr) + '\n')
@@ -177,23 +179,31 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
         f.write("elapsed time: %.5f s\n" % ht.elapsed_time)
         f.write(f'incorrect_samples:\n[{incorrect_samples}]')
 
-def main():
-    load_embed_dict(mode=0)
+def main(dargs, sargs):
+
+    global DATA_ARGS, SVC_ARGS
+    DATA_ARGS = dargs
+    SVC_ARGS = sargs
+
+    start = time.perf_counter()
+    
+    load_embed_dict()
     load_tokenizer()
 
-    n_clusters = 20
-    num_rounds = 2000
-    suffix = 'cw_BERT'
+    n_clusters = SVC_ARGS.getint('n_svm')
+    num_rounds = SVC_ARGS.getint('n_rounds')
+    suffix = SVC_ARGS['suffix']
     
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True]
-    is_aspect_embeddings = [True, False]
+    is_aspect_embeddings = [True, False] if SVC_ARGS.getboolean('use_aspect_embeddings') else [False]
+
     best_accs = [0 for _ in range(0, n_clusters)]
     print(chi_ratios)
 
     for aspect_id in range(0, n_clusters):
-        ht = HyperoptTunerLibSVM()
+        ht = HyperoptTunerSVM(thundersvm=SVC_ARGS.getboolean('thundersvm'))
         # ht1 = HyperoptTunerLibSVM()
         for bf in bow_features:
             for iss in is_sampling:
@@ -202,7 +212,7 @@ def main():
                         for cr in chi_ratios:
                             if ht.best_acc >= 1.0:
                                 break
-                            data = Dataset(base_dir=REST_DIR, is_preprocessed=True, ratio=cr) #
+                            data = Dataset(base_dir=DATA_ARGS['base_dir'], is_preprocessed=True, ratio=cr) #
                             train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
@@ -232,7 +242,7 @@ def main():
                                 write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters)
 
                     else:
-                        data = Dataset(base_dir=REST_DIR, is_preprocessed=True) #
+                        data = Dataset(base_dir=DATA_ARGS['base_dir'], is_preprocessed=True) #
                         train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                             (aspect_id, len(train_data), len(test_data)))
@@ -240,10 +250,9 @@ def main():
                         # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
+    end = time.perf_counter()
+    print("--- %s seconds ---" % (end - start))
                     
 
 if __name__ == '__main__':
-    start = time.perf_counter()
-    main()
-    end = time.perf_counter()
-    print("--- %s seconds ---" % (end - start))
+    main(False)
