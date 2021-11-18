@@ -99,17 +99,21 @@ def get_dependent_words(dependencies, words, pos_tags, n=2, window_size=0):
     return [words[i-1] for i in result], [pos_tags[i-1] for i in result], dependent_results
 
 
-def aspect_cluster(dataset, n_clusters=20):
-    ac = AspectCluster(dataset, n_clusters)
+def aspect_cluster(dataset, ns=False, bert=True, n_clusters=20):
+    if bert:
+        ac = BERTAspectCluster(dataset, ns=ns, n_clusters=n_clusters)
+    else:
+        ac = AspectCluster(dataset, n_clusters=n_clusters)
     _, vectors = ac.fit()
     ac.predict()
     ac.save_cluster_result()
-
     return ac, vectors
 
-
-def word_cluster(dataset, n_clusters=20):
-    wc = WordsCluster(dataset, n_clusters)
+def word_cluster(dataset, ns=False, bert=True, n_clusters=20):
+    if bert:
+        wc = BERTWordsCluster(dataset, ns=ns, n_clusters=n_clusters)
+    else:
+        wc = WordsCluster(dataset, n_clusters=n_clusters)
     wc.generate_vector()
     return wc
 
@@ -145,7 +149,7 @@ def chi_calculation(dataset, ratio):
 
 
 class Dataset(object):
-    def __init__(self, base_dir, is_preprocessed, n_clusters=20, ratio=0.3):
+    def __init__(self, base_dir, is_preprocessed, ns=False, bert=True, aspect_clusters=20, word_clusters=20, ratio=0.3):
         self.base_dir = base_dir
         if not is_preprocessed:
             training_path = os.path.join(base_dir, 'train.txt')
@@ -156,8 +160,12 @@ class Dataset(object):
             preprocessing(self.test_data)
             # _preprocessing(self.train_data)
             # _preprocessing(self.test_data)
-            aspect_cluster(self, n_clusters)
-            word_cluster(self, n_clusters)
+
+            print('attempt aspect cluster')
+            aspect_cluster(self, ns, bert, aspect_clusters)
+            print('attempt word cluster')
+            word_cluster(self, ns, bert, word_clusters)
+
             self.save_as_pickle()
             self.save_as_txt()
             self.save_as_tmp()
@@ -248,7 +256,6 @@ class Dataset(object):
                 f.write(s.text + "\n")
                 f.write(s.aspect + "\n")
                 f.write(str(s.polarity) + "\n")
-
 
 
 class Sample(object):

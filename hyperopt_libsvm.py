@@ -2,16 +2,14 @@ from hyperopt import hp, tpe, STATUS_OK, fmin
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from file_utils import *
 
-#from sklearn.svm import SVC
-from thundersvm import SVC
-
 import time
 import os
 
 
-class HyperoptTunerLibSVM(object):
+class HyperoptTunerSVM(object):
 
-    def __init__(self, train_X=None, train_y=None, test_X=None, test_y=None, cluster_id=None, base_dir=None):
+    def __init__(self, thundersvm=False, train_X=None, train_y=None, test_X=None, test_y=None, cluster_id=None, base_dir=None):
+        self.poly_namespace = ''
         self.train_X = train_X
         self.train_y = train_y
         self.test_X = test_X
@@ -27,28 +25,36 @@ class HyperoptTunerLibSVM(object):
         self.elapsed_time = None
         self.base_dir = base_dir
         self.correct = 0
+        self.package = self.select_package(thundersvm)
+
+    def select_package(self, tsvm):
+        if tsvm:
+            from thundersvm import SVC
+            self.poly_namespace = 'polynomial'
+        else:
+            from sklearn.svm import SVC
+            self.poly_namespace = 'poly'
+        return SVC
 
     # pre-set parameters space
     def _preset_ps(self):
         space4svm = {
             'C': hp.uniform('C', 2 ** 10, 2 ** 20),
             # NOTE: CHANGE ALL KERNEL FROM 'POLY' TO 'POLYNOMIAL'
-            'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', 'polynomial']), #, 'linear', 'rbf', 'polynomial'
+            'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', self.poly_namespace]), #, 'linear', 'rbf', 'polynomial'
             'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
             'degree': hp.choice('degree', [i for i in range(1, 6)]),
             'coef0': hp.uniform('coef0', 1, 10),
-            'class_weight': hp.choice('class_weight', ['balanced', None]),
-             
+            'class_weight': hp.choice('class_weight', ['balanced', None]),    
         }
-
         return space4svm
 
     def _svm_constraint(self, params):
-        if params['kernel'] != 'polynomial':
+        if params['kernel'] != self.poly_namespace:
             params.pop('degree', None)
 
-        if params['kernel'] != 'polynomial' and params['kernel'] != 'sigmoid':
+        if params['kernel'] != self.poly_namespace and params['kernel'] != 'sigmoid':
             params.pop('coef0', None)
 
         if params['kernel'] == 'linear':
@@ -59,7 +65,7 @@ class HyperoptTunerLibSVM(object):
     def _svm(self, params, is_tuning=True):
         params = self._svm_constraint(params)
         # print("!!!!!!!!!!!!!!--->>> " + str(params))
-        clf = SVC(**params, random_state=42)
+        clf = self.package(**params, random_state=42)
         clf.fit(self.train_X, self.train_y)
         pred = clf.predict(self.test_X)
         self.pred_results = pred

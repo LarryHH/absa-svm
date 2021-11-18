@@ -12,16 +12,22 @@ def load_stanza():
     stanza.download('en')
     return stanza.Pipeline(lang='en', tokenize_pretokenized=True)
     
-def aspect_cluster(dataset, mode, n_clusters=20):
-    ac = BERTAspectCluster(dataset, mode=mode, n_clusters=n_clusters)
+def aspect_cluster(dataset, ns=False, bert=True, n_clusters=20):
+    if bert:
+        ac = BERTAspectCluster(dataset, ns=ns, n_clusters=n_clusters)
+    else:
+        ac = AspectCluster(dataset, n_clusters=n_clusters)
     _, vectors = ac.fit()
     ac.predict()
     ac.save_cluster_result()
 
     return ac, vectors
 
-def word_cluster(dataset, mode, n_clusters=20):
-    wc = BERTWordsCluster(dataset, mode=mode, n_clusters=n_clusters)
+def word_cluster(dataset, ns=False, bert=True, n_clusters=20):
+    if bert:
+        wc = BERTWordsCluster(dataset, ns=ns, n_clusters=n_clusters)
+    else:
+        wc = WordsCluster(dataset, n_clusters=n_clusters)
     wc.generate_vector()
     return wc
 
@@ -57,7 +63,7 @@ def chi_calculation(dataset, ratio):
                 sample.bow_tags.append(w)
 
 class Dataset(object):
-    def __init__(self, base_dir, is_preprocessed, n_clusters=20, ratio=0.3):
+    def __init__(self, base_dir, is_preprocessed, ns=False, bert=True, aspect_clusters=20, word_clusters=20, ratio=0.3):
         self.base_dir = base_dir
         self.train_data = None
         self.test_data = None
@@ -73,10 +79,11 @@ class Dataset(object):
             self.preprocessing(self.train_data)
             self.preprocessing(self.test_data)
 
+
             print('attempt aspect cluster')
-            aspect_cluster(self, 0, n_clusters)
+            aspect_cluster(self, ns, bert, aspect_clusters)
             print('attempt word cluster')
-            word_cluster(self, 0, n_clusters)
+            word_cluster(self, ns, bert, word_clusters)
 
             print('save files...')
             self.save_as_pickle(base_dir, 'parsed_data', 'parsed_train.plk', 'parsed_test.plk', self.train_data, self.test_data)

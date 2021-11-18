@@ -178,7 +178,7 @@ class WordsCluster(Cluster):
 
 class BERTAspectCluster(Cluster):
 
-    def __init__(self, dataset, mode=0, n_clusters=10):
+    def __init__(self, dataset, ns=False, n_clusters=10):
         super().__init__(n_clusters)
         self.dataset = dataset
         self.training_clusters = {}
@@ -187,18 +187,18 @@ class BERTAspectCluster(Cluster):
         self.tokenizer = None
         
         self.load_tokenizer()
-        self.load_embed_dict(mode)
+        self.load_embed_dict(ns)
 
     def load_tokenizer(self):
         self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
      # TODO: upload finished embedding dicts to drive, read from here
-    def load_embed_dict(self, mode):
-        # mode 0 = wordpiece, mode 1 = neversplit
-        if mode == 0:
-            embed_path = os.path.join(self.dataset.base_dir, f'parsed_data/bert_embeddings_rest.plk')
-        if mode == 1:
-            embed_path = os.path.join(self.dataset.base_dir, f'parsed_data/bert_embeddings_rest_ns.plk')
+    def load_embed_dict(self, ns):
+        # ns 0 = wordpiece, ns 1 = neversplit
+        if ns:
+            embed_path = os.path.join(self.dataset.base_dir, f"parsed_data/bert_embeddings_{self.dataset.base_dir.split('/')[1]}_ns.plk")
+        else:
+            embed_path = os.path.join(self.dataset.base_dir, f"parsed_data/bert_embeddings_{self.dataset.base_dir.split('/')[1]}.plk")
         if self.embed_dict is None:
             self.embed_dict = pickle.load(open(embed_path, 'rb'))
 
@@ -256,7 +256,7 @@ class BERTAspectCluster(Cluster):
 
 class BERTWordsCluster(Cluster):
 
-    def __init__(self, dataset, mode=0, n_clusters=30):
+    def __init__(self, dataset, ns=False, n_clusters=30):
         super().__init__(n_clusters)
         self.dataset = dataset
         self.embed_dict = None
@@ -268,7 +268,7 @@ class BERTWordsCluster(Cluster):
         self.tokenizer = None
         
         self.load_tokenizer()
-        self.load_embed_dict(mode)
+        self.load_embed_dict(ns)
         self.get_aspect_words()
         self.fit()
     
@@ -276,13 +276,11 @@ class BERTWordsCluster(Cluster):
         self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
     # TODO: upload finished embedding dicts to drive, read from here
-    def load_embed_dict(self, mode):
-        # mode 0 = wordpiece, mode 1 = neversplit
-        if mode == 0:
-            embed_path = os.path.join(self.dataset.base_dir, f'parsed_data/bert_embeddings_rest.plk')
-        if mode == 1:
-            embed_path = os.path.join(self.dataset.base_dir, f'parsed_data/bert_embeddings_rest_ns.plk')
-        
+    def load_embed_dict(self, ns):
+        if ns:
+            embed_path = os.path.join(self.dataset.base_dir, f"parsed_data/bert_embeddings_{self.dataset.base_dir.split('/')[1]}_ns.plk")
+        else:
+            embed_path = os.path.join(self.dataset.base_dir, f"parsed_data/bert_embeddings_{self.dataset.base_dir.split('/')[1]}.plk")
         if self.embed_dict is None:
             self.embed_dict = pickle.load(open(embed_path, 'rb'))
 
