@@ -1,6 +1,5 @@
 from sklearn.cluster import KMeans
 import numpy as np
-from dataset_depparse import *
 from file_utils import *
 import pickle
 import os
@@ -192,7 +191,7 @@ class BERTAspectCluster(Cluster):
     def load_tokenizer(self):
         self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
 
-     # TODO: upload finished embedding dicts to drive, read from here
+    # TODO: upload finished embedding dicts to drive, read from here
     def load_embed_dict(self, ns):
         # ns 0 = wordpiece, ns 1 = neversplit
         if ns:

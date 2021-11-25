@@ -36,11 +36,7 @@ from nltk.stem import WordNetLemmatizer
 # nltk.download('wordnet')
 
 # MODULES
-# from dataset_depparse import *
-from file_utils import *
-from cluster_utils import *
-from chi import CHI
-from lexicon_features import *
+from dataset_depparse import *
 import search_feature_comb
 
 '''
