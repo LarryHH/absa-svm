@@ -250,6 +250,23 @@ def main(dargs, sargs):
                         # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
+                        scaler = Normalizer().fit(x_train)
+                        x_train = scaler.transform(x_train)
+                        x_test = scaler.transform(x_test)
+                        ht.train_X = x_train
+                        ht.train_y = y_train
+                        ht.test_X = x_test
+                        ht.test_y = y_test
+                        ht.cluster_id = aspect_id
+                        ht.base_dir = data.base_dir
+                        ht.tune_params(num_rounds)
+                        if ht.best_acc > best_accs[aspect_id]:
+                            best_accs[aspect_id] = ht.best_acc
+                            predictions = ht.pred_results.tolist()
+                            true_labels = y_test
+                            mask = [False if x[0] == x[1] else True for x in zip(predictions, true_labels)]
+                            incorrect_samples = ', '.join([str(s.id) for i, s in enumerate(test_data) if mask[i]])
+                            write_best_results(ht, num_rounds, aspect_id, 1, bf, iss, asp, incorrect_samples, suffix, n_clusters)
     end = time.perf_counter()
     print("--- %s seconds ---" % (end - start))
                     
