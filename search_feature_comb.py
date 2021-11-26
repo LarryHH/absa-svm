@@ -196,7 +196,7 @@ def main(dargs, sargs):
     
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
-    is_sampling = [True]
+    is_sampling = [True, False] if SVC_ARGS.getboolean('use_subsampling') else [False]
     is_aspect_embeddings = [True, False] if SVC_ARGS.getboolean('use_aspect_embeddings') else [False]
 
     best_accs = [0 for _ in range(0, n_clusters)]
