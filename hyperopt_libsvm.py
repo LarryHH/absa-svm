@@ -1,14 +1,27 @@
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+
 from hyperopt import hp, tpe, STATUS_OK, fmin
 from sklearn.metrics import accuracy_score, f1_score, classification_report
 from file_utils import *
 
+import numpy as np
 import time
 import os
 
 
-class HyperoptTunerSVM(object):
+class HyperoptTuner(object):
 
-    def __init__(self, thundersvm=False, train_X=None, train_y=None, test_X=None, test_y=None, cluster_id=None, base_dir=None):
+    def __init__(self, classifier, cargs, train_X=None, train_y=None, test_X=None, test_y=None, cluster_id=None, base_dir=None):
+        self.classifier = classifier
+        self.cargs = cargs
         self.poly_namespace = ''
         self.train_X = train_X
         self.train_y = train_y
@@ -25,30 +38,55 @@ class HyperoptTunerSVM(object):
         self.elapsed_time = None
         self.base_dir = base_dir
         self.correct = 0
-        self.package = self.select_package(thundersvm)
+        self.svc_package = self.select_svc_package(classifier)
 
-    def select_package(self, tsvm):
-        if tsvm:
-            from thundersvm import SVC
-            self.poly_namespace = 'polynomial'
-        else:
-            from sklearn.svm import SVC
-            self.poly_namespace = 'poly'
-        return SVC
+    def select_svc_package(self, classifier):
+        if classifier == 'SVC':
+            if self.cargs['thundersvm']:
+                from thundersvm import SVC
+                self.poly_namespace = 'polynomial'
+            else:
+                from sklearn.svm import SVC
+                self.poly_namespace = 'poly'
+            return SVC
+        return None
 
     # pre-set parameters space
     def _preset_ps(self):
-        space4svm = {
-            'C': hp.uniform('C', 2 ** 10, 2 ** 20),
-            # NOTE: CHANGE ALL KERNEL FROM 'POLY' TO 'POLYNOMIAL'
-            'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', self.poly_namespace]), #, 'linear', 'rbf', 'polynomial'
-            'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
-            # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
-            'degree': hp.choice('degree', [i for i in range(1, 6)]),
-            'coef0': hp.uniform('coef0', 1, 10),
-            'class_weight': hp.choice('class_weight', ['balanced', None]),    
-        }
-        return space4svm
+        if self.classifier == 'SVC':
+            params = {
+                'C': hp.uniform('C', 2 ** 10, 2 ** 20),
+                # NOTE: CHANGE ALL KERNEL FROM 'POLY' TO 'POLYNOMIAL'
+                'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', self.poly_namespace]), #, 'linear', 'rbf', 'polynomial'
+                'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
+                # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
+                'degree': hp.choice('degree', [i for i in range(1, 6)]),
+                'coef0': hp.uniform('coef0', 1, 10),
+                'class_weight': hp.choice('class_weight', ['balanced', None]),    
+            }
+            params = self._svm_constraint(params)
+        if self.classifier == 'RF':
+            params = {
+                'n_estimators': hp.choice('n_estimators', np.arange(100, 500, dtype=int)),
+                'max_depth': hp.choice('max_depth', np.arange(5, 20, dtype=int)),
+                'min_samples_leaf': hp.choice('min_samples_leaf', np.arange(1, 5, dtype=int)),
+                'min_samples_split': hp.choice('min_samples_split', np.arange(2, 6, dtype=int))
+            }
+        if self.classifier == 'KNN':
+            params = {}
+        if self.classifier == 'MLP':
+            params = {}
+        if self.classifier == 'GP':
+            params = {}
+        if self.classifier == 'DT':
+            params = {}
+        if self.classifier == 'ADAB':
+            params = {}
+        if self.classifier == 'GNB':
+            params = {} 
+        if self.classifier == 'QDA':
+            params = {}      
+        return params
 
     def _svm_constraint(self, params):
         if params['kernel'] != self.poly_namespace:
@@ -62,10 +100,29 @@ class HyperoptTunerSVM(object):
 
         return params
 
-    def _svm(self, params, is_tuning=True):
-        params = self._svm_constraint(params)
-        # print("!!!!!!!!!!!!!!--->>> " + str(params))
-        clf = self.package(**params, random_state=42)
+    def classifier_from_string(self, params):
+        if self.classifier == 'SVC':
+            clf = self.svc_package(**params, random_state=42)
+        if self.classifier == 'RF':
+            clf = RandomForestClassifier(**params, random_state=42)
+        if self.classifier == 'KNN':
+            clf = KNeighborsClassifier(**params, random_state=42)
+        if self.classifier == 'MLP':
+            clf = MLPClassifier(**params, random_state=42)
+        if self.classifier == 'GP':
+            clf = GaussianProcessClassifier(**params, random_state=42)
+        if self.classifier == 'DT':
+            clf = DecisionTreeClassifier(**params, random_state=42)
+        if self.classifier == 'ADAB':
+            clf = AdaBoostClassifier(**params, random_state=42)
+        if self.classifier == 'GNB':
+            clf = GaussianNB(**params, random_state=42) 
+        if self.classifier == 'QDA':
+            clf = QuadraticDiscriminantAnalysis(**params, random_state=42)      
+        return clf
+
+    def _clf(self, params, is_tuning=True):
+        clf = self.classifier_from_string(params)
         clf.fit(self.train_X, self.train_y)
         pred = clf.predict(self.test_X)
         self.pred_results = pred
@@ -103,24 +160,24 @@ class HyperoptTunerSVM(object):
             # print('Optimized macro_f1: %.5f ' % score_f1)
             # print(self.clf_report)
             # print("####################################################################")
-            make_dirs(os.path.join(self.base_dir, 'tmp_optimized_result'))
-            path2save = os.path.join(self.base_dir, 'tmp_optimized_result', 'cluster_' + str(self.cluster_id))
+            # make_dirs(os.path.join(self.base_dir, 'tmp_optimized_result'))
+            # path2save = os.path.join(self.base_dir, 'tmp_optimized_result', 'cluster_' + str(self.cluster_id))
 
-            with open(path2save, 'w') as f:
-                f.write("################################################################\n")
-                f.write(str(params) + "\n")
-                f.write('Optimized acc: %.5f \n' % score_acc)
-                f.write('Optimized macro_f1: %.5f \n' % score_f1)
-                f.write('training set shape: %s\n' % str(self.train_X.shape))
-                f.write(self.clf_report)
-                f.write("correct / total: %d / %d\n" % (correct, len(self.test_y)))
-                f.write(str(self.elapsed_time) + "\n")
-                f.write("################################################################")
+            # with open(path2save, 'w') as f:
+            #     f.write("################################################################\n")
+            #     f.write(str(params) + "\n")
+            #     f.write('Optimized acc: %.5f \n' % score_acc)
+            #     f.write('Optimized macro_f1: %.5f \n' % score_f1)
+            #     f.write('training set shape: %s\n' % str(self.train_X.shape))
+            #     f.write(self.clf_report)
+            #     f.write("correct / total: %d / %d\n" % (correct, len(self.test_y)))
+            #     f.write(str(self.elapsed_time) + "\n")
+            #     f.write("################################################################")
 
         return score_acc
 
     def _object2minimize(self, params):
-        score_acc = self._svm(params)
+        score_acc = self._clf(params)
         return {'loss': 1 - score_acc, 'status': STATUS_OK}
 
     def tune_params(self, n_iter=200):
@@ -132,7 +189,7 @@ class HyperoptTunerSVM(object):
         t_end = time.time()
         self.elapsed_time = t_end - t_start
         # print the final optimized result
-        self._svm(self.best_cfg, is_tuning=False)
+        self._clf(self.best_cfg, is_tuning=False)
 
     def optimized_svm(self, params):
-        self._svm(params, False)
+        self._clf(params, False)

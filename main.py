@@ -9,6 +9,7 @@ from typing import Union, Tuple, List
 from collections import defaultdict
 from pathlib import Path
 import pickle
+from ast import literal_eval
 
 # ML
 from sklearn.decomposition import TruncatedSVD
@@ -20,7 +21,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import scale
-from hyperopt_libsvm import HyperoptTunerSVM
 
 # NLP
 import stanza
@@ -49,7 +49,8 @@ ABSA-SVM TASK
 2.2. Statistics/performance
 '''
 DATA_ARGS = None
-SVC_ARGS = None
+CLASSIFIERS = None
+FEATURES = None
 STOP_WORDS = None
 
 def get_dataset():
@@ -68,20 +69,35 @@ def get_dataset():
     return data
 
 def load_config(fp):
-    config = configparser.ConfigParser(allow_no_value=True)		
+    config = configparser.ConfigParser(allow_no_value=True)	
+    config.optionxform = str	
     config.read(fp)
     data_args = config['DATA']
-    svc_args = config['SVC']
-    return data_args, svc_args
+    clfs = config['CLASSIFIERS']
+    features = config['FEATURES']
+
+    classifiers = {}
+    for clf in clfs:
+        if clfs.getboolean(clf):
+            classifiers[clf] = {}
+            for k, v in dict(config[clf]).items():
+                try:
+                    v_eval = literal_eval(v) if v not in ['true', 'false'] else literal_eval(v.capitalize())
+                except ValueError as e:
+                    v_eval = v
+                classifiers[clf][k] = v_eval
+    print(classifiers)
+    return data_args, classifiers, features
 
 def main():
     if not DATA_ARGS.getboolean('processed'):
         data = get_dataset()
-    if SVC_ARGS.getboolean('pipeline'):
-        search_feature_comb.main(DATA_ARGS, SVC_ARGS)
+    
+    if CLASSIFIERS:
+        for clf, args in CLASSIFIERS.items():
+            search_feature_comb.main(DATA_ARGS, FEATURES, clf, args)
 
 if __name__ == "__main__":
 
-    DATA_ARGS, SVC_ARGS = load_config('config/config.ini')
-
+    DATA_ARGS, CLASSIFIERS, FEATURES = load_config('config/config.ini')
     main()

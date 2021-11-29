@@ -1,5 +1,6 @@
 import os
 import re
+import configparser
 
 NUMBERS = re.compile(r'(\d+)')
 
@@ -8,9 +9,19 @@ def numerical_sort(value):
     parts[1::2] = map(int, parts[1::2])
     return parts
 
-def cal_acc(result_dir):
+def get_clf_names(fp):
+    config = configparser.ConfigParser(allow_no_value=True)	
+    config.optionxform = str	
+    config.read(fp)
+    clfs = config['CLASSIFIERS']
+    return [c for c in clfs]
+
+def cal_acc(result_dir, clf):
     filenames = os.listdir(result_dir)
     result_dict = {}
+    filenames = [f for f in filenames if f.split('_')[0] == clf]
+    if not filenames:
+        return None 
     for fn in sorted(filenames, key=numerical_sort):
         final_path = os.path.join(result_dir, fn)
         with open(final_path, 'r') as f:
@@ -41,17 +52,21 @@ if __name__ == '__main__':
     
     #result_dict = cal_acc('../svm-result/svm-result25')
     #result_dict = cal_acc('datasets/rest/tmp_optimized_result')
-    fn = 'r2000_BERT'
-    result_dict = cal_acc(f'datasets/rest/optimal_results/{fn}')
-    #result_dict = cal_acc('datasets/rest/optimal_results/svm-results-k20')
-    correct = sum(result_dict['correct'])
-    total = sum(result_dict['total'])
-    f_scores = result_dict['f1']
-    print(f'f_scores: {f_scores}')
-    f1 = 0
-    for num_sample, chunk_f in zip(result_dict['total'], f_scores):
-        #f1 += num_sample / 1120 * chunk_f
-        f1 += num_sample / total * chunk_f
-    print('correct / total: %d / %d' % (correct, total))
-    print('Acc: %.5f' % (correct / total))
-    print('F1: %.5f' % f1)
+    fn = 'r5_k20_TEST'
+
+    clf_names = get_clf_names('config/config.ini')
+
+    for clf in clf_names:
+        print(f"CLASSIFER: {clf}")
+        result_dict = cal_acc(f'datasets/rest/optimal_results/{fn}', clf)
+        if result_dict:
+            correct = sum(result_dict['correct'])
+            total = sum(result_dict['total'])
+            f_scores = result_dict['f1']
+            print(f'f_scores: {f_scores}')
+            f1 = 0
+            for num_sample, chunk_f in zip(result_dict['total'], f_scores):
+                f1 += num_sample / total * chunk_f
+            print('correct / total: %d / %d' % (correct, total))
+            print('Acc: %.5f' % (correct / total))
+            print('F1: %.5f' % f1)

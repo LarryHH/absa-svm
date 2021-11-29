@@ -12,17 +12,20 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import scale
 
-from hyperopt_libsvm import HyperoptTunerSVM  
+from hyperopt_libsvm import HyperoptTuner  
 
 import time
 from pathlib import Path
 import pickle
 import configparser
+from shutil import copyfile
 
 from transformers import BertTokenizerFast
 
 DATA_ARGS = None
-SVC_ARGS = None
+CLF_ARGS = None
+CLASSIFIER = None
+FEATURES = None
 TOKENIZER = None
 EMBED_DICT = None
 stop_words = stop_words()
@@ -160,10 +163,7 @@ def load_embed_dict():
     EMBED_DICT = pickle.load(open(embed_path, 'rb'))
 
 def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters):
-    if suffix != '':
-        suffix = '_' + suffix
-    Path(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
-    with open(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/svm_{str(aspect_id)}", 'w') as f:
+    with open(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/{CLASSIFIER}_{str(aspect_id)}", 'w') as f:
         f.write("################################################################\n")
         f.write('chi_ratio: ' + str(cr) + '\n')
         # f.write('cr: ' + str(cr) + '\n')
@@ -179,32 +179,43 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
         f.write("elapsed time: %.5f s\n" % ht.elapsed_time)
         f.write(f'incorrect_samples:\n[{incorrect_samples}]')
 
-def main(dargs, sargs):
+def main(dargs, features, classifier, cargs):
 
-    global DATA_ARGS, SVC_ARGS
+    global DATA_ARGS, CLASSIFIER, CLF_ARGS, FEATURES
     DATA_ARGS = dargs
-    SVC_ARGS = sargs
+    CLASSIFIER = classifier
+    CLF_ARGS = cargs
+    FEATURES = features
 
     start = time.perf_counter()
     
     load_embed_dict()
     load_tokenizer()
 
-    n_clusters = SVC_ARGS.getint('n_svm')
-    num_rounds = SVC_ARGS.getint('n_rounds')
-    suffix = SVC_ARGS['suffix']
+    # if not os.path.exists(path):
+    #     os.makedirs(path)
+    ## write to this new dir
+
+    n_clusters = FEATURES.getint('n_clfs')
+    num_rounds = FEATURES.getint('n_rounds')
+    suffix = FEATURES['suffix']
     
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
-    is_sampling = [True, False] if SVC_ARGS.getboolean('use_subsampling') else [False]
-    is_aspect_embeddings = [True, False] if SVC_ARGS.getboolean('use_aspect_embeddings') else [False]
+    is_sampling = [True, False] if FEATURES.getboolean('use_subsampling') else [False]
+    is_aspect_embeddings = [True, False] if FEATURES.getboolean('use_aspect_embeddings') else [False]
 
     best_accs = [0 for _ in range(0, n_clusters)]
     print(chi_ratios)
 
+    if suffix != '':
+        suffix = '_' + suffix
+    Path(f"{DATA_ARGS['base_dir']}optimal_results/r{num_rounds}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
+    copyfile('config/config.ini', f"{DATA_ARGS['base_dir']}optimal_results/r{num_rounds}_k{n_clusters}{suffix}/config.ini")
+
     for aspect_id in range(0, n_clusters):
-        ht = HyperoptTunerSVM(thundersvm=SVC_ARGS.getboolean('thundersvm'))
-        # ht1 = HyperoptTunerLibSVM()
+        # if CLASSIFIER == 'SVC':
+        ht = HyperoptTuner(CLASSIFIER, CLF_ARGS)
         for bf in bow_features:
             for iss in is_sampling:
                 for asp in is_aspect_embeddings:
@@ -217,11 +228,8 @@ def main(dargs, sargs):
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
-                            # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
                             y_train = [pol+1 for pol in y_train]
                             y_test = [pol+1 for pol in y_test]
-                            # print(x_train.shape)
-                            # print(x_train)
                             scaler = Normalizer().fit(x_train)
                             x_train = scaler.transform(x_train)
                             x_test = scaler.transform(x_test)
@@ -247,7 +255,6 @@ def main(dargs, sargs):
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                             (aspect_id, len(train_data), len(test_data)))
                         x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
-                        # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
                         scaler = Normalizer().fit(x_train)
