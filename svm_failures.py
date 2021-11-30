@@ -14,16 +14,24 @@ def numericalSort(value):
     return parts
 
 def load_indexes(fp):
-    all_indexes = []
+    res = {
+        'indexes': [],
+        'f1': []
+    }
+
     for fn in sorted(os.listdir(fp), key=numericalSort):
         with open(os.path.join(fp, fn), 'r') as f:
             lines = f.read().splitlines()
             indexes = literal_eval(lines[-1])
-            all_indexes.append(indexes)
-    return all_indexes
+            res['indexes'].append(indexes)
+            for line in lines:
+                if 'macro_f1' in line:
+                    f_score = float(line.split(':')[1].strip())
+                    res['f1'].append(f_score)
+    return res
 
-def failures_indexes(data, indexes): # per cluster
-    for i, index in enumerate(indexes):
+def failures_indexes(data, res): # per cluster
+    for i, (f1, index) in enumerate(zip(res['f1'], res['indexes'])):
         print(f'--- SVM: {i} ---')
         incorrect = [data.test_data[i] for i in index]
 
@@ -37,16 +45,16 @@ def failures_indexes(data, indexes): # per cluster
         polarity = dict(sorted(polarity.items(), key=lambda item: item[1], reverse=True))
 
         # print(aspects)
-        # print(polarity) 
+        print(f1, polarity) 
 
 
 if __name__ == "__main__":
     base_dir = 'datasets/rest'
-    res_fn = 'r2000_BERT'
+    res_fn = 'r500_k20_BERT'
     res_dir = f'{base_dir}/optimal_results/{res_fn}'
 
     data = Dataset(base_dir=base_dir, is_preprocessed=True)
-    indexes = load_indexes(res_dir)
-    failures_indexes(data, indexes)
+    res = load_indexes(res_dir)
+    failures_indexes(data, res)
 
 
