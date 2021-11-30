@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import scale
+from imblearn.over_sampling import SMOTE
 
 from hyperopt_libsvm import HyperoptTuner  
 
@@ -203,6 +204,7 @@ def main(dargs, features, classifier, cargs):
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True, False] if FEATURES.getboolean('use_subsampling') else [False]
+    is_smote = FEATURES.getboolean('use_smote_subsampling')
     is_aspect_embeddings = [True, False] if FEATURES.getboolean('use_aspect_embeddings') else [False]
 
     best_accs = [0 for _ in range(0, n_clusters)]
@@ -230,6 +232,9 @@ def main(dargs, features, classifier, cargs):
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
                             y_train = [pol+1 for pol in y_train]
                             y_test = [pol+1 for pol in y_test]
+                            if is_smote:
+                                sm = SMOTE(random_state=42)
+                                x_train, y_train = sm.fit_resample(x_train, y_train)
                             scaler = Normalizer().fit(x_train)
                             x_train = scaler.transform(x_train)
                             x_test = scaler.transform(x_test)

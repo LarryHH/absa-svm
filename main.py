@@ -76,6 +76,8 @@ def load_config(fp):
     clfs = config['CLASSIFIERS']
     features = config['FEATURES']
 
+    features = feature_presets(features)
+
     classifiers = {}
     for clf in clfs:
         if clfs.getboolean(clf):
@@ -88,6 +90,10 @@ def load_config(fp):
                 classifiers[clf][k] = v_eval
     print(classifiers)
     return data_args, classifiers, features
+
+def feature_presets(features):
+    if features.getboolean('use_smote_subsampling'):
+        features.set('use_subsampling') == 'false'
 
 def main():
     if not DATA_ARGS.getboolean('processed'):
