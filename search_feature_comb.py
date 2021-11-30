@@ -205,6 +205,8 @@ def main(dargs, features, classifier, cargs):
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
     is_sampling = [True, False] if FEATURES.getboolean('use_subsampling') else [False]
     is_smote = FEATURES.getboolean('use_smote_subsampling')
+    if is_smote:
+        sm = SMOTE(random_state=42)
     is_aspect_embeddings = [True, False] if FEATURES.getboolean('use_aspect_embeddings') else [False]
 
     best_accs = [0 for _ in range(0, n_clusters)]
@@ -233,7 +235,6 @@ def main(dargs, features, classifier, cargs):
                             y_train = [pol+1 for pol in y_train]
                             y_test = [pol+1 for pol in y_test]
                             if is_smote:
-                                sm = SMOTE(random_state=42)
                                 x_train, y_train = sm.fit_resample(x_train, y_train)
                             scaler = Normalizer().fit(x_train)
                             x_train = scaler.transform(x_train)
@@ -263,7 +264,6 @@ def main(dargs, features, classifier, cargs):
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
                         if is_smote:
-                            sm = SMOTE(random_state=42)
                             x_train, y_train = sm.fit_resample(x_train, y_train)
                         scaler = Normalizer().fit(x_train)
                         x_train = scaler.transform(x_train)
