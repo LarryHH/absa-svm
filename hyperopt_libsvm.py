@@ -57,12 +57,13 @@ class HyperoptTuner(object):
             params = {
                 'C': hp.uniform('C', 2 ** 10, 2 ** 20),
                 # NOTE: CHANGE ALL KERNEL FROM 'POLY' TO 'POLYNOMIAL'
-                'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', self.poly_namespace]), #, 'linear', 'rbf', 'polynomial'
+                # , 'linear', 'rbf', 'polynomial'
+                'kernel': hp.choice('kernel', ['sigmoid', 'linear', 'rbf', self.poly_namespace]),
                 'gamma': hp.uniform('gamma', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
                 # 'gamma_value': hp.uniform('gamma_value', 0.001 / self.train_X.shape[1], 10.0 / self.train_X.shape[1]),
                 'degree': hp.choice('degree', [i for i in range(1, 6)]),
                 'coef0': hp.uniform('coef0', 1, 10),
-                'class_weight': hp.choice('class_weight', ['balanced', None]),    
+                'class_weight': hp.choice('class_weight', ['balanced', None]),
             }
             params = self._svm_constraint(params)
         if self.classifier == 'RF':
@@ -73,19 +74,34 @@ class HyperoptTuner(object):
                 'min_samples_split': hp.choice('min_samples_split', np.arange(2, 6, dtype=int))
             }
         if self.classifier == 'KNN':
-            params = {}
+            params = {
+                'n_neighbors': hp.choice('n_neighbors', [3, 5, 7]),
+                'weights': hp.choice('weights', ['uniform', 'distance']),
+                'leaf_size': hp.choice('leaf_size', np.arange(30, 50, dtype=int)),
+                'p': hp.choice('p', [1,2])
+            }
         if self.classifier == 'MLP':
             params = {}
         if self.classifier == 'GP':
-            params = {}
+            params = {
+                'kernel': 1.0 * RBF(1.0)
+            }
         if self.classifier == 'DT':
-            params = {}
+            params = {
+                'max_depth': hp.choice('max_depth', np.arange(5, 20, dtype=int)),
+                'min_samples_leaf': hp.choice('min_samples_leaf', np.arange(1, 5, dtype=int)),
+                'min_samples_split': hp.choice('min_samples_split', np.arange(2, 6, dtype=int)),
+                'class_weight': hp.choice('class_weight', ['balanced', None]),
+            }
         if self.classifier == 'ADAB':
-            params = {}
+            params = {
+                'n_estimators': hp.choice('n_estimators', np.arange(50, 200, dtype=int)),
+                'learning_rate': hp.uniform('learning_rate',  0.01, 10)
+            }
         if self.classifier == 'GNB':
-            params = {} 
+            params = {}
         if self.classifier == 'QDA':
-            params = {}      
+            params = {}
         return params
 
     def _svm_constraint(self, params):
@@ -116,9 +132,9 @@ class HyperoptTuner(object):
         if self.classifier == 'ADAB':
             clf = AdaBoostClassifier(**params, random_state=42)
         if self.classifier == 'GNB':
-            clf = GaussianNB(**params, random_state=42) 
+            clf = GaussianNB(**params, random_state=42)
         if self.classifier == 'QDA':
-            clf = QuadraticDiscriminantAnalysis(**params, random_state=42)      
+            clf = QuadraticDiscriminantAnalysis(**params, random_state=42)
         return clf
 
     def _clf(self, params, is_tuning=True):
@@ -147,7 +163,8 @@ class HyperoptTuner(object):
             # print("best_macro_f1: %.5f" % self.best_f1)
             # print(self.clf_report)
             # print("****************************************************************")
-            print('current_iter / best_iter: %d / %d' % (self.cnt, self.best_iter))
+            print('current_iter / best_iter: %d / %d' %
+                  (self.cnt, self.best_iter))
         else:
             correct = 0
             for pred_y, true_y in zip(pred, self.test_y):
@@ -183,9 +200,9 @@ class HyperoptTuner(object):
     def tune_params(self, n_iter=200):
         t_start = time.time()
         fmin(fn=self._object2minimize,
-            algo=tpe.suggest,
-            space=self._preset_ps(),
-            max_evals=n_iter)
+             algo=tpe.suggest,
+             space=self._preset_ps(),
+             max_evals=n_iter)
         t_end = time.time()
         self.elapsed_time = t_end - t_start
         # print the final optimized result
