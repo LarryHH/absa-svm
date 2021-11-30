@@ -262,6 +262,9 @@ def main(dargs, features, classifier, cargs):
                         x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
+                        if is_smote:
+                            sm = SMOTE(random_state=42)
+                            x_train, y_train = sm.fit_resample(x_train, y_train)
                         scaler = Normalizer().fit(x_train)
                         x_train = scaler.transform(x_train)
                         x_test = scaler.transform(x_test)
