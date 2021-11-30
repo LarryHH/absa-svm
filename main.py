@@ -93,7 +93,8 @@ def load_config(fp):
 
 def feature_presets(features):
     if features.getboolean('use_smote_subsampling'):
-        features.set('use_subsampling') == 'false'
+        features['use_subsampling'] = 'false'
+    return features
 
 def main():
     if not DATA_ARGS.getboolean('processed'):
