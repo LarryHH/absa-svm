@@ -166,9 +166,9 @@ class Dataset(object):
             print('attempt word cluster')
             word_cluster(self, ns, bert, word_clusters)
 
-            self.save_as_pickle()
-            self.save_as_txt()
-            self.save_as_tmp()
+            self.save_as_pickle(base_dir, 'parsed_data', 'parsed_train.plk', 'parsed_test.plk', self.train_data, self.test_data)
+            self.save_as_txt(base_dir, 'parsed_data', 'parsed_train.txt', 'parsed_test.txt', self.train_data, self.test_data)
+            #self.save_as_tmp()
         else:
             training_path = os.path.join(base_dir, 'parsed_data', 'parsed_train.plk')
             test_path = os.path.join(base_dir, 'parsed_data', 'parsed_test.plk')
@@ -180,29 +180,30 @@ class Dataset(object):
         data = []
         lines = read_as_list(path)
         for i in range(len(lines) // 3):
-            data.append(Sample(lines[i * 3], lines[i * 3 + 1], int(lines[i * 3 + 2])))
-
+            text = lines[i * 3]
+            aspect = lines[i * 3 + 1]
+            polarity = int(lines[i * 3 + 2])       
+            data.append(Sample(text, aspect, polarity, i))
         return data
 
     def load_preprocessed_data(self, training_path, test_path):
         self.train_data = pickle.load(open(training_path, 'rb'))
         self.test_data = pickle.load(open(test_path, 'rb'))
 
-    def save_as_pickle(self):
-        training_path = os.path.join(base_dir, 'parsed_data', 'parsed_train.plk')
-        test_path = os.path.join(base_dir, 'parsed_data', 'parsed_test.plk')
-        pickle.dump(self.train_data, open(training_path, 'wb'))
-        pickle.dump(self.test_data, open(test_path, 'wb'))
+    def save_as_pickle(self, base_dir, fp, fname_tr, fname_t, train_data, test_data):
+        training_path = os.path.join(base_dir, fp, fname_tr)
+        test_path = os.path.join(base_dir, fp, fname_t)
+        pickle.dump(train_data, open(training_path, 'wb'))
+        pickle.dump(test_data, open(test_path, 'wb'))
 
-    def save_as_txt(self):
-        training_path = os.path.join(base_dir, 'parsed_data', 'parsed_train.txt')
-        test_path = os.path.join(base_dir, 'parsed_data', 'parsed_test.txt')
+    def save_as_txt(self, base_dir, fp, fname_tr, fname_t, train_data, test_data):
+        training_path = os.path.join(base_dir, fp, fname_tr)
+        test_path = os.path.join(base_dir, fp, fname_t)
         with open(training_path, 'w') as f:
-            for sample in self.train_data:
+            for sample in train_data:
                 f.write(sample.__str__())
-
         with open(test_path, 'w') as f:
-            for sample in self.test_data:
+            for sample in test_data:
                 f.write(sample.__str__())
 
     def data_from_aspect(self, aspect_cluster, is_sampling=True):
@@ -259,7 +260,8 @@ class Dataset(object):
 
 
 class Sample(object):
-    def __init__(self, text, aspect, polarity):
+    def __init__(self, text, aspect, polarity, sample_id=0):
+        self.id = sample_id
         self.text = text
         self.aspect = aspect
         self.polarity = polarity
