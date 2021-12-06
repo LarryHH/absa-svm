@@ -122,7 +122,7 @@ class HyperoptTuner(object):
         if self.classifier == 'RF':
             clf = RandomForestClassifier(**params, random_state=42)
         if self.classifier == 'KNN':
-            clf = KNeighborsClassifier(**params, random_state=42)
+            clf = KNeighborsClassifier(**params)
         if self.classifier == 'MLP':
             clf = MLPClassifier(**params, random_state=42)
         if self.classifier == 'GP':
@@ -146,7 +146,7 @@ class HyperoptTuner(object):
         score_f1 = f1_score(self.test_y, pred, average='macro')
 
         self.cnt += 1
-        if score_acc > self.best_acc:
+        if score_f1 > self.best_f1:
             self.best_acc = score_acc
             self.best_f1 = score_f1
             self.best_cfg = params
@@ -191,11 +191,11 @@ class HyperoptTuner(object):
             #     f.write(str(self.elapsed_time) + "\n")
             #     f.write("################################################################")
 
-        return score_acc
+        return score_f1
 
     def _object2minimize(self, params):
-        score_acc = self._clf(params)
-        return {'loss': 1 - score_acc, 'status': STATUS_OK}
+        score_f1 = self._clf(params)
+        return {'loss': 1 - score_f1, 'status': STATUS_OK}
 
     def tune_params(self, n_iter=200):
         t_start = time.time()
