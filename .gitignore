@@ -16,6 +16,8 @@ datasets/rest/parsed_data/bert_embeddings_rest.plk
 datasets/laptops/parsed_data/bert_embeddings_laptops.plk
 datasets/laptops/parsed_data/bert_embeddings_laptops_ns.plk
 
+datasets/rest/optimal_results/*
+datasets/laptops/optimal_results/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
