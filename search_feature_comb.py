@@ -11,18 +11,25 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import Normalizer
 from sklearn.preprocessing import scale
+from imblearn.over_sampling import SMOTE
 
-from hyperopt_libsvm import HyperoptTunerSVM  
+from hyperopt_libsvm import HyperoptTuner  
 
 import time
 from pathlib import Path
 import pickle
 import configparser
+from shutil import copyfile
+from collections import Counter
+from operator import itemgetter
+
 
 from transformers import BertTokenizerFast
 
 DATA_ARGS = None
-SVC_ARGS = None
+CLF_ARGS = None
+CLASSIFIER = None
+FEATURES = None
 TOKENIZER = None
 EMBED_DICT = None
 stop_words = stop_words()
@@ -159,16 +166,14 @@ def load_embed_dict():
         embed_path = os.path.join(DATA_ARGS['base_dir'], f"parsed_data/bert_embeddings_{DATA_ARGS['base_dir'].split('/')[1]}.plk")
     EMBED_DICT = pickle.load(open(embed_path, 'rb'))
 
-def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters):
-    if suffix != '':
-        suffix = '_' + suffix
-    Path(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
-    with open(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/svm_{str(aspect_id)}", 'w') as f:
+def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters, using_smote):
+    with open(f"{DATA_ARGS['base_dir']}optimal_results/r{r}_k{n_clusters}{suffix}/{CLASSIFIER}_{str(aspect_id)}", 'w') as f:
         f.write("################################################################\n")
         f.write('chi_ratio: ' + str(cr) + '\n')
         # f.write('cr: ' + str(cr) + '\n')
         f.write('bow_features: ' + bf + '\n')
         f.write('is_sampling: ' + str(iss) + '\n')
+        f.write('is_smote: ' + str(using_smote) + '\n')
         f.write('is_aspect_embeddings: ' + str(asp) + '\n')
         f.write(str(ht.best_cfg) + "\n")
         f.write('Optimized acc: %.5f \n' % ht.best_acc)
@@ -179,32 +184,46 @@ def write_best_results(ht, r, aspect_id, cr, bf, iss, asp, incorrect_samples, su
         f.write("elapsed time: %.5f s\n" % ht.elapsed_time)
         f.write(f'incorrect_samples:\n[{incorrect_samples}]')
 
-def main(dargs, sargs):
+def main(dargs, features, classifier, cargs):
 
-    global DATA_ARGS, SVC_ARGS
+    global DATA_ARGS, CLASSIFIER, CLF_ARGS, FEATURES
     DATA_ARGS = dargs
-    SVC_ARGS = sargs
+    CLASSIFIER = classifier
+    CLF_ARGS = cargs
+    FEATURES = features
 
     start = time.perf_counter()
     
     load_embed_dict()
     load_tokenizer()
 
-    n_clusters = SVC_ARGS.getint('n_svm')
-    num_rounds = SVC_ARGS.getint('n_rounds')
-    suffix = SVC_ARGS['suffix']
+    # if not os.path.exists(path):
+    #     os.makedirs(path)
+    ## write to this new dir
+
+    n_clusters = FEATURES.getint('n_clfs')
+    num_rounds = FEATURES.getint('n_rounds')
+    suffix = FEATURES['suffix']
     
     chi_ratios = [x/10 for x in range(1, 11)]
     bow_features = ['all_words', 'parse_result', 'parse+chi']  #,'all_words',  'parse+chi'
-    is_sampling = [True]
-    is_aspect_embeddings = [True, False] if SVC_ARGS.getboolean('use_aspect_embeddings') else [False]
+    is_sampling = [True, False] if FEATURES.getboolean('use_subsampling') else [False]
+    is_smote = FEATURES.getboolean('use_smote_subsampling')
+    using_smote = is_smote
+    smote_k = FEATURES.getint('smote_k')
+    is_aspect_embeddings = [True, False] if FEATURES.getboolean('use_aspect_embeddings') else [False]
 
-    best_accs = [0 for _ in range(0, n_clusters)]
+    best_f1s = [0 for _ in range(0, n_clusters)]
     print(chi_ratios)
 
+    if suffix != '':
+        suffix = '_' + suffix
+    Path(f"{DATA_ARGS['base_dir']}optimal_results/r{num_rounds}_k{n_clusters}{suffix}/").mkdir(parents=True, exist_ok=True)
+    copyfile('config/config.ini', f"{DATA_ARGS['base_dir']}optimal_results/r{num_rounds}_k{n_clusters}{suffix}/config.ini")
+
     for aspect_id in range(0, n_clusters):
-        ht = HyperoptTunerSVM(thundersvm=SVC_ARGS.getboolean('thundersvm'))
-        # ht1 = HyperoptTunerLibSVM()
+        # if CLASSIFIER == 'SVC':
+        ht = HyperoptTuner(CLASSIFIER, CLF_ARGS)
         for bf in bow_features:
             for iss in is_sampling:
                 for asp in is_aspect_embeddings:
@@ -213,15 +232,26 @@ def main(dargs, sargs):
                             if ht.best_acc >= 1.0:
                                 break
                             data = Dataset(base_dir=DATA_ARGS['base_dir'], is_preprocessed=True, ratio=cr) #
+
                             train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
-                            # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
+
+                            if is_smote:
+                                label_counts = Counter(y_train)
+                                _, min_count = min(label_counts.items(), key=itemgetter(1))
+                                if min_count <= smote_k:
+                                    using_smote = False
+                                    train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=True)
+                                    x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
+                                else:
+                                    using_smote = True
+                                    sm = SMOTE(k_neighbors=smote_k, random_state=42)
+                                    x_train, y_train = sm.fit_resample(x_train, y_train)
                             y_train = [pol+1 for pol in y_train]
                             y_test = [pol+1 for pol in y_test]
-                            # print(x_train.shape)
-                            # print(x_train)
+
                             scaler = Normalizer().fit(x_train)
                             x_train = scaler.transform(x_train)
                             x_test = scaler.transform(x_test)
@@ -233,13 +263,13 @@ def main(dargs, sargs):
                             ht.base_dir = data.base_dir
                             ht.tune_params(num_rounds)
 
-                            if ht.best_acc > best_accs[aspect_id]:
-                                best_accs[aspect_id] = ht.best_acc
+                            if ht.best_f1 > best_f1s[aspect_id]:
+                                best_f1s[aspect_id] = ht.best_f1
                                 predictions = ht.pred_results.tolist()
                                 true_labels = y_test
                                 mask = [False if x[0] == x[1] else True for x in zip(predictions, true_labels)]
                                 incorrect_samples = ', '.join([str(s.id) for i, s in enumerate(test_data) if mask[i]])
-                                write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters)
+                                write_best_results(ht, num_rounds, aspect_id, cr, bf, iss, asp, incorrect_samples, suffix, n_clusters, using_smote)
 
                     else:
                         data = Dataset(base_dir=DATA_ARGS['base_dir'], is_preprocessed=True) #
@@ -247,9 +277,36 @@ def main(dargs, sargs):
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                             (aspect_id, len(train_data), len(test_data)))
                         x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
-                        # NOTE: SHIFTED LABELS FOR CLASS_WEIGHTS
+                        if is_smote:
+                            label_counts = Counter(y_train)
+                            _, min_count = min(label_counts.items(), key=itemgetter(1))
+                            if min_count <= smote_k:
+                                using_smote = False
+                                train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=True)
+                                x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
+                            else:
+                                using_smote = True
+                                sm = SMOTE(k_neighbors=smote_k, random_state=42)
+                                x_train, y_train = sm.fit_resample(x_train, y_train)
                         y_train = [pol+1 for pol in y_train]
                         y_test = [pol+1 for pol in y_test]
+                        scaler = Normalizer().fit(x_train)
+                        x_train = scaler.transform(x_train)
+                        x_test = scaler.transform(x_test)
+                        ht.train_X = x_train
+                        ht.train_y = y_train
+                        ht.test_X = x_test
+                        ht.test_y = y_test
+                        ht.cluster_id = aspect_id
+                        ht.base_dir = data.base_dir
+                        ht.tune_params(num_rounds)
+                        if ht.best_f1 > best_f1s[aspect_id]:
+                            best_f1s[aspect_id] = ht.best_f1
+                            predictions = ht.pred_results.tolist()
+                            true_labels = y_test
+                            mask = [False if x[0] == x[1] else True for x in zip(predictions, true_labels)]
+                            incorrect_samples = ', '.join([str(s.id) for i, s in enumerate(test_data) if mask[i]])
+                            write_best_results(ht, num_rounds, aspect_id, 1, bf, iss, asp, incorrect_samples, suffix, n_clusters, using_smote)
     end = time.perf_counter()
     print("--- %s seconds ---" % (end - start))
                     
