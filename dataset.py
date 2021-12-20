@@ -1,5 +1,5 @@
 from file_utils import *
-from stanford_nlp import StanfordNLP
+#from stanford_nlp import StanfordNLP
 import pickle
 from cluster_utils import *
 from chi import CHI
