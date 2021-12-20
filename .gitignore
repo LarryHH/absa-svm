@@ -16,6 +16,11 @@ datasets/rest/parsed_data/bert_embeddings_rest.plk
 datasets/laptops/parsed_data/bert_embeddings_laptops.plk
 datasets/laptops/parsed_data/bert_embeddings_laptops_ns.plk
 
+datasets/rest/parsed_data/temp_parsed*
+datasets/laptops/parsed_data/temp_parsed*
+
+datasets/combined/parsed_data/bert_embeddings_combined.plk
+
 datasets/rest/optimal_results/*
 datasets/laptops/optimal_results/*
 
