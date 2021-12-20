@@ -18,8 +18,12 @@ def load_indexes(fp):
         'indexes': [],
         'f1': []
     }
-
-    for fn in sorted(os.listdir(fp), key=numericalSort):
+    filenames = os.listdir(fp)
+    filenames.remove('config.ini')
+    filenames = [f for f in filenames if target in f]
+    filenames = sorted(filenames, key=numericalSort)
+    
+    for fn in filenames:
         with open(os.path.join(fp, fn), 'r') as f:
             lines = f.read().splitlines()
             indexes = literal_eval(lines[-1])
@@ -34,6 +38,7 @@ def failures_indexes(data, res): # per cluster
     for i, (f1, index) in enumerate(zip(res['f1'], res['indexes'])):
         print(f'--- SVM: {i} ---')
         incorrect = [data.test_data[i] for i in index]
+        print(i, index)
 
         # aspects
         aspects = Counter(s.aspect for s in incorrect)
@@ -44,14 +49,16 @@ def failures_indexes(data, res): # per cluster
         polarity = dict((new_keys[key], value) for (key, value) in polarity.items())
         polarity = dict(sorted(polarity.items(), key=lambda item: item[1], reverse=True))
 
-        # print(aspects)
-        print(f1, polarity) 
+        #print(f1, polarity)
+        for sample in incorrect:
+            print(sample.id, sample.polarity, sample.text) 
 
 
 if __name__ == "__main__":
     base_dir = 'datasets/rest'
     res_fn = 'r500_k20_BERT'
     res_dir = f'{base_dir}/optimal_results/{res_fn}'
+    target = 'SVC'
 
     data = Dataset(base_dir=base_dir, is_preprocessed=True)
     res = load_indexes(res_dir)
