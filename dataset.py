@@ -161,6 +161,11 @@ class Dataset(object):
             # _preprocessing(self.train_data)
             # _preprocessing(self.test_data)
 
+            # save temp
+            print('saving processing results in temp.plk/temp.txt')
+            self.save_as_pickle(base_dir, 'parsed_data', 'temp_parsed_train.plk', 'temp_parsed_test.plk', self.train_data, self.test_data)
+            self.save_as_txt(base_dir, 'parsed_data', 'temp_parsed_train.txt', 'temp_parsed_test.txt', self.train_data, self.test_data)
+
             print('attempt aspect cluster')
             aspect_cluster(self, ns, bert, aspect_clusters)
             print('attempt word cluster')
