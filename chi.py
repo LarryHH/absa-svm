@@ -1,5 +1,5 @@
 from collections import Counter
-from dataset_depparse import *
+#from dataset_depparse import *
 from file_utils import *
 
 
@@ -71,9 +71,10 @@ class CHI(object):
 
 
 if __name__ == '__main__':
-    data = Dataset(base_dir='datasets/rest', is_preprocessed=True)
-    chi = CHI([" ".join(s.words) for s in data.train_data],
-              [s.aspect_cluster for s in data.train_data],
-              stop_words())
+    pass
+    # data = Dataset(base_dir='datasets/rest', is_preprocessed=True)
+    # chi = CHI([" ".join(s.words) for s in data.train_data],
+    #           [s.aspect_cluster for s in data.train_data],
+    #           stop_words())
     # print(chi.chi_dict[0])
     # print(len(chi.chi_dict[0]))
