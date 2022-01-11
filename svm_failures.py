@@ -16,7 +16,8 @@ def numericalSort(value):
 def load_indexes(fp):
     res = {
         'indexes': [],
-        'f1': []
+        'f1': [],
+        'preds': []
     }
     filenames = os.listdir(fp)
     filenames.remove('config.ini')
@@ -26,8 +27,10 @@ def load_indexes(fp):
     for fn in filenames:
         with open(os.path.join(fp, fn), 'r') as f:
             lines = f.read().splitlines()
-            indexes = literal_eval(lines[-1])
+            indexes = literal_eval(lines[-3])
+            preds = literal_eval(lines[-1])
             res['indexes'].append(indexes)
+            res['preds'].append(preds)
             for line in lines:
                 if 'macro_f1' in line:
                     f_score = float(line.split(':')[1].strip())
@@ -35,10 +38,10 @@ def load_indexes(fp):
     return res
 
 def failures_indexes(data, res): # per cluster
-    for i, (f1, index) in enumerate(zip(res['f1'], res['indexes'])):
-        print(f'--- SVM: {i} ---')
+    for i, (f1, index, pred) in enumerate(zip(res['f1'], res['indexes'], res['preds'])):
+        print(f'--- SVM: {i} --- F1: {f1}, #FAILS: {len(index)}')
         incorrect = [data.test_data[i] for i in index]
-        print(i, index)
+        #print(i, index, pred)
 
         # aspects
         aspects = Counter(s.aspect for s in incorrect)
@@ -49,9 +52,10 @@ def failures_indexes(data, res): # per cluster
         polarity = dict((new_keys[key], value) for (key, value) in polarity.items())
         polarity = dict(sorted(polarity.items(), key=lambda item: item[1], reverse=True))
 
-        #print(f1, polarity)
-        for sample in incorrect:
-            print(sample.id, sample.polarity, sample.text) 
+        print(f'--- {polarity}')
+        for (sample, p) in zip(incorrect, pred):
+            print(f"ID: {sample.id}, T_LABEL: {new_keys[sample.polarity]}, P_LABEL: {new_keys[p]}, ASPECT: {sample.aspect}")
+            print(f"TEXT: {sample.text}")
 
 
 if __name__ == "__main__":
