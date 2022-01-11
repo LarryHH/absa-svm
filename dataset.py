@@ -10,18 +10,43 @@ def load_stanza():
     stanza.download('en')
     return stanza.Pipeline(lang='en', tokenize_pretokenized=True)
 
-def _preprocessing(data):
-    nlp_helper = StanfordNLP()
+# def _preprocessing(data):
+#     nlp_helper = StanfordNLP()
 
-    for sample in data:
-        # 1. tokenize && pos tagging
-        sample.words, sample.pos_tags = nlp_helper.pos_tag(sample.text)
-        # 2. get aspect-dependent words
-        aspect_term = sample.aspect.split(' ')[-1]
-        tmp_text = str.replace(sample.text, '##', aspect_term)
-        sample.dependent_words, sample.dependent_pos_tags, _ = nlp_helper.get_dependent_words(sample.words, sample.pos_tags, tmp_text, n=3, window_size=5)
-        print(sample)
+#     for sample in data:
+#         # 1. tokenize && pos tagging
+#         sample.words, sample.pos_tags = nlp_helper.pos_tag(sample.text)
+#         # 2. get aspect-dependent words
+#         aspect_term = sample.aspect.split(' ')[-1]
+#         tmp_text = str.replace(sample.text, '##', aspect_term)
+#         sample.dependent_words, sample.dependent_pos_tags, _ = nlp_helper.get_dependent_words(sample.words, sample.pos_tags, tmp_text, n=3, window_size=5)
+#         print(sample)
 
+def format_hashstring(text: str, aspect: str):
+    # fix malformed hashwords, e.g. '*##', '##*', '*##*', and if aspect has multiple terms, replace ## with aspects
+    tokens = text.split(' ')
+    idx = [i for i, token in enumerate(tokens) if '##' in token][0]
+    hashwords = tokens[idx]
+    hashwords = [w if w else "'" for w in hashwords.split("'")]
+    tokens[idx] = '##'
+    if len(hashwords) > 1:
+        tokens = [y for x in tokens for y in ([x] if x != '##' else hashwords)]
+    tokens = [t if '##' not in t else '##' for t in tokens]
+    hashwords = [w for w in hashwords if w != "'"][0]
+    # idx = tokens.index('##')
+    aspect_trunc = ''
+    # fix truncated aspect
+    if len(hashwords) > 2:
+        if hashwords.startswith('#'): # "##*"
+            aspect_trunc = hashwords.split('##')[1]
+            aspect = aspect + aspect_trunc
+        elif hashwords.endswith('#'): # "*##"
+            aspect_trunc = hashwords.split('##')[0] 
+            aspect = aspect_trunc + aspect
+        else: # "*##*"
+            aspect_trunc = hashwords.split('##') 
+            aspect = aspect.join(aspect_trunc)
+    return ' '.join(tokens)
 
 def preprocessing(data):
 
@@ -29,14 +54,17 @@ def preprocessing(data):
     
     for i, sample in enumerate(data):
         # 1. tokenize && pos tagging
-        nlp_parsed_obj = nlp_helper(sample.text)
+
+        text = format_hashstring(sample.text, sample.aspect)
+
+        nlp_parsed_obj = nlp_helper(text)
         sample.words, sample.pos_tags = list(map(list, zip(
             *[(word.text, word.xpos) for sent in nlp_parsed_obj.sentences for word in sent.words])))
 
         # 2. get aspect-dependent words
         aspect_term = sample.aspect.split(' ')[-1]
 
-        tmp_text = str.replace(sample.text, '##', aspect_term)
+        tmp_text = str.replace(text, '##', aspect_term)
 
         nlp_parsed_obj = nlp_helper(tmp_text)
         dependencies = [(dep_edge[1], dep_edge[0].id, dep_edge[2].id)

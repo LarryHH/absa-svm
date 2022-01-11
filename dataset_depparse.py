@@ -151,19 +151,12 @@ class Dataset(object):
     def preprocessing(self, data):
         length = len(data)
         for i, sample in enumerate(data):
-            # print(i*3)
-            # print(sample.text)
-            # print(sample.aspect)
             tokens, sample.aspect = self.format_hashstring(sample.text, sample.aspect)
             text = ' '.join(tokens)
-            # print(tokens)
-            # print(sample.aspect)
             nlp_parsed_obj = NLP_HELPER(text)
             sample.words, sample.pos_tags = list(map(list, zip(
                 *[(word.text, word.xpos) for sent in nlp_parsed_obj.sentences for word in sent.words])))
-            # print(sample.words)
             idx = sample.words.index(sample.aspect.split(' ')[0])
-            #tmp_text = str.replace(sample.text, '##', sample.aspect)
             dependencies = [(dep_edge[1], dep_edge[0].id, dep_edge[2].id)
                             for sent in nlp_parsed_obj.sentences for dep_edge in sent.dependencies]
             sample.dependent_words, sample.dependent_pos_tags, _ = self.get_dependent_words(
