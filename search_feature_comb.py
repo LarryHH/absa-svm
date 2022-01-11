@@ -233,6 +233,8 @@ def main(dargs, features, classifier, cargs):
                             train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                             print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                                 (aspect_id, len(train_data), len(test_data)))
+                            if not test_data:
+                                continue
                             x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
 
                             y_train = [pol+1 for pol in y_train]
@@ -263,6 +265,8 @@ def main(dargs, features, classifier, cargs):
                         train_data, test_data = data.data_from_aspect(aspect_id, is_sampling=iss)
                         print("aspect_cluster_id: %d, #train_instance = %d, #test_instance = %d" %
                             (aspect_id, len(train_data), len(test_data)))
+                        if not test_data:
+                            continue
                         x_train, y_train, x_test, y_test = generate_vectors(train_data, test_data, bf, asp)
 
                         y_train = [pol+1 for pol in y_train]
