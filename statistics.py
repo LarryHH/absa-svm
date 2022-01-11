@@ -52,13 +52,14 @@ if __name__ == '__main__':
     
     #result_dict = cal_acc('../svm-result/svm-result25')
     #result_dict = cal_acc('datasets/rest/tmp_optimized_result')
-    fn = 'r5_k20_TEST'
+    base_dir = 'datasets/rest'
+    fn = 'r500_k30_BERT'
 
     clf_names = get_clf_names('config/config.ini')
 
     for clf in clf_names:
         print(f"CLASSIFER: {clf}")
-        result_dict = cal_acc(f'datasets/rest/optimal_results/{fn}', clf)
+        result_dict = cal_acc(f'{base_dir}/optimal_results/{fn}', clf)
         if result_dict:
             correct = sum(result_dict['correct'])
             total = sum(result_dict['total'])
