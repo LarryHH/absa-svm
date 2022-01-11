@@ -146,7 +146,7 @@ class HyperoptTuner(object):
         score_f1 = f1_score(self.test_y, pred, average='macro')
 
         self.cnt += 1
-        if score_f1 > self.best_f1:
+        if score_acc > self.best_acc:
             self.best_acc = score_acc
             self.best_f1 = score_f1
             self.best_cfg = params
@@ -154,15 +154,6 @@ class HyperoptTuner(object):
             self.clf_report = str(classification_report(self.test_y, pred))
 
         if is_tuning:
-            # print("****************************************************************")
-            # print('current params:\n  %s' % str(params))
-            # print('best params:\n  %s' % str(self.best_cfg))
-            # print('training set shape: %s' % str(self.train_X.shape))
-            # print('current acc / best acc: %.5f / %.5f' % (score_acc, self.best_acc))
-            # print('current_iter / best_iter: %d / %d' % (self.cnt, self.best_iter))
-            # print("best_macro_f1: %.5f" % self.best_f1)
-            # print(self.clf_report)
-            # print("****************************************************************")
             print('current_iter / best_iter: %d / %d' %
                   (self.cnt, self.best_iter))
         else:
@@ -171,31 +162,11 @@ class HyperoptTuner(object):
                 if pred_y == true_y:
                     correct += 1
             self.correct = correct
-            # print("\n\n################################################################")
-            # print(params)
-            # print('Optimized acc: %.5f ' % score_acc)
-            # print('Optimized macro_f1: %.5f ' % score_f1)
-            # print(self.clf_report)
-            # print("####################################################################")
-            # make_dirs(os.path.join(self.base_dir, 'tmp_optimized_result'))
-            # path2save = os.path.join(self.base_dir, 'tmp_optimized_result', 'cluster_' + str(self.cluster_id))
-
-            # with open(path2save, 'w') as f:
-            #     f.write("################################################################\n")
-            #     f.write(str(params) + "\n")
-            #     f.write('Optimized acc: %.5f \n' % score_acc)
-            #     f.write('Optimized macro_f1: %.5f \n' % score_f1)
-            #     f.write('training set shape: %s\n' % str(self.train_X.shape))
-            #     f.write(self.clf_report)
-            #     f.write("correct / total: %d / %d\n" % (correct, len(self.test_y)))
-            #     f.write(str(self.elapsed_time) + "\n")
-            #     f.write("################################################################")
-
-        return score_f1
+        return score_acc
 
     def _object2minimize(self, params):
-        score_f1 = self._clf(params)
-        return {'loss': 1 - score_f1, 'status': STATUS_OK}
+        score_acc = self._clf(params)
+        return {'loss': 1 - score_acc, 'status': STATUS_OK}
 
     def tune_params(self, n_iter=200):
         t_start = time.time()
