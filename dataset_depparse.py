@@ -308,6 +308,22 @@ class Sample(object):
 
         return result
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'text': self.text,
+            'aspect': self.aspect,
+            'polarity': self.polarity,
+            'words': self.words,
+            'pos_tags': self.pos_tags,
+            'dependent_words': self.dependent_words,   # words that has dependency with aspect
+            'dependent_pos_tags': self.dependent_pos_tags,
+            'aspect_cluster': self.aspect_cluster,
+            'bow_words': self.bow_words,
+            'bow_tags': self.bow_tags,
+            'sbow_vec': self.sbow_vec
+        }
+
 
 
 # if __name__ == '__main__':
