@@ -21,15 +21,17 @@ datasets/combined/parsed_data/bert_embeddings_combined_ns.plk
 
 datasets/rest/parsed_data/temp_parsed*
 datasets/laptops/parsed_data/temp_parsed*
+datasets/combined/parsed_data/temp_parsed*
+
+datasets/rest/analysis
+datasets/laptops/analysis
+datasets/combined/analysis
 
 datasets/combined/parsed_data/bert_embeddings_combined.plk
 
 datasets/rest/optimal_results/*
 datasets/laptops/optimal_results/*
 datasets/combined/optimal_results/*
-
-failures.txt
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
